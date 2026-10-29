@@ -39,7 +39,7 @@ class AnalyticsIntegrationTests(unittest.TestCase):
         df["segment_name"]=df.cluster_id.map(label_map)
         df["record_id"]=range(1,len(df)+1)
         cls.bundle={
-            "neighbors":Pipeline([("scale",StandardScaler()),("knn",NearestNeighbors(n_neighbors=6))]).fit(df[FEATURES]),
+            "neighbors":Pipeline([("scale",StandardScaler()),("knn",NearestNeighbors(n_neighbors=100))]).fit(df[FEATURES]),
             "records":df[["record_id"]+FEATURES+["road_zone","weather","delay_minutes","segment_name"]],
             "explainer":DecisionTreeClassifier(max_depth=3,random_state=42).fit(df[FEATURES],df.cluster_id),
             "label_map":label_map,
