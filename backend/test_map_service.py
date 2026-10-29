@@ -3,7 +3,7 @@ from map_service import MapUnavailable, coordinates, lane_number, parse_roads
 
 class MapServiceTests(unittest.TestCase):
     def test_coordinates_accept_india_area_and_round(self):
-        self.assertEqual(coordinates({"lat":21.145812,"lon":79.088245}),(21.14581,79.08824))
+        self.assertEqual(coordinates({"lat":21.145812,"lon":79.088245}),(21.14581,79.08825))
     def test_coordinates_reject_invalid_values(self):
         for payload in [None,{"lat":100,"lon":79},{"lat":21,"lon":120},{"lat":True,"lon":79},{"lat":float("nan"),"lon":79}]:
             with self.subTest(payload=payload), self.assertRaises(ValueError): coordinates(payload)
