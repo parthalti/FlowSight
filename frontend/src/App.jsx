@@ -5,7 +5,7 @@ import IndiaRoadMap from './IndiaRoadMap.jsx';
 const DEFAULT = PRESETS['Morning rush'];
 const SAME = { ...DEFAULT };
 function Section({ n, title, children }) {
-  return <section className="panel"><div className="section-heading"><span>{n}</span><div><h2>{title}</h2>{children && <p>Explore the current scenario and its evidence.</p>}</div></div></section>;
+  return <section className="panel"><div className="section-heading"><span>{n}</span><div><h2>{title}</h2></div></div>{children}</section>;
 }
 
 export default function App() {
