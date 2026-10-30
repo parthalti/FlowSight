@@ -11,7 +11,18 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-OVERPASS_URL = os.environ.get('OVERPASS_URL', 'https://overpass-api.de/api/interpreter')
+DEFAULT_OVERPASS_URLS = (
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+)
+# Set OVERPASS_URLS to a comma-separated list to override the public fallback list.
+OVERPASS_URLS = tuple(
+    url.strip() for url in os.environ.get('OVERPASS_URLS', ','.join(DEFAULT_OVERPASS_URLS)).split(',')
+    if url.strip()
+)
+if not OVERPASS_URLS:
+    OVERPASS_URLS = DEFAULT_OVERPASS_URLS
 USER_AGENT = 'FlowSight/1.1 (educational road explorer; repository URL configured by the maintainer)'
 CACHE_TTL = 3600
 _cache = OrderedDict()
@@ -100,19 +111,24 @@ def nearby_roads(payload):
         if now - _last_request < 2:
             raise MapBusy('Please wait two seconds between road lookups.')
         _last_request = now
-    query = (f'[out:json][timeout:12];way(around:700,{lat},{lon})'
+    query = (f'[out:json][timeout:8];way(around:700,{lat},{lon})'
              '["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out geom 40;')
-    req = Request(OVERPASS_URL, data=urlencode({'data': query}).encode(),
-                  headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'})
-    try:
-        with urlopen(req, timeout=16) as response:
-            raw = response.read(3_000_001)
-        if len(raw) > 3_000_000:
-            raise MapUnavailable('This area returned too much map data. Choose a less dense location.')
-        data = json.loads(raw)
-        roads = parse_roads(data)
-    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
-        raise MapUnavailable('Road lookup is unavailable. The public map service may be busy or offline. You can still enter a manual road scenario.') from error
+    last_error = None
+    roads = None
+    for endpoint in OVERPASS_URLS:
+        req = Request(endpoint, data=urlencode({'data': query}).encode(),
+                      headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'})
+        try:
+            with urlopen(req, timeout=10) as response:
+                raw = response.read(3_000_001)
+            if len(raw) > 3_000_000:
+                raise MapUnavailable('This area returned too much map data. Choose a less dense location.')
+            roads = parse_roads(json.loads(raw))
+            break
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, MapUnavailable) as error:
+            last_error = error
+    if roads is None:
+        raise MapUnavailable('Road lookup is unavailable from the configured OpenStreetMap services. Try again later or enter a manual road scenario.') from last_error
     result = {'roads': roads, 'center': [lat, lon], 'radius_m': 700,
               'fetched_at': datetime.now(timezone.utc).isoformat(),
               'source': 'OpenStreetMap contributors via Overpass API',
